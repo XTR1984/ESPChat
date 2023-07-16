@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Секретный чатик</title>
+    <script src="/js/jquery-3.6.0.min.js"></script>
+    <style>
+        #chat {
+            width: 90%;
+            height: 300px;
+            overflow-y: scroll;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+        #message {
+            width: 70%;
+        }    
+        #status {
+            padding: 10px;
+        }
+    </style>
+</head>
+<body onload="getMessages();">
+    <h2>Привет! Вы попали в секретный чатик!</h2>
+    <div id=chat></div>
+    <input type="text" id="name" maxlength="15" value="Гость">
+    <input type="text" id="message" maxlength="80" placeholder="Введите сообщение">
+    <div id=status> </div>
+    <button onclick="sendMessage()">Отправить</button>
+    <script>
+        var last_id = -1;
+        //$('#message').onEnterKey(sendMessage())
+        $('#message').keypress(function (e) {
+            if (e.which == 13) {
+                sendMessage()
+            }
+        }); 
+
+        function sendMessage() {
+            var message = $("#message").val();
+            //todo вырезать тэги
+            if (message == "") return;
+            var author = $("#name").val();
+            var data = {
+                "t":  Date.now(),
+                "a": author,
+                "m": message
+            };
+            $.ajax({
+                url: "/add_msg", 
+                type: "POST",
+                data: JSON.stringify(data),
+                contentType: "application/json; charset=utf-8",
+                dataType: "json",
+                success: function(response) {
+                    //console.log(response);
+                },
+                error: function(xhr, status, error) {
+                    console.error(error);
+                }
+            });
+
+            $("#message").val("");
+        }
+
+        function setStatus(s){
+            $("#status").innerHtml = s;
+        }
+        function chatappend(element){
+            var chat = $("#chat");
+            if(! $("[m_id="+element.id+"]").length){  //if no message in chatbox
+                mdiv = "<div m_id=" + element.id + ">";
+                time = new Date(element.t);
+                innerText = time.toLocaleString() + " " + element.a + ": " + element.m;
+                mdiv += innerText+  "</div>";
+                chat.append(mdiv);
+            }
+                $('#chat').scrollTop($('#chat')[0].scrollHeight);
+        }
+        function getMessages() {
+            setStatus("Сообщения загружаются..");
+            $.ajax({
+            url: "/get_msgs", 
+                type: "GET",
+                data: { from_id: last_id+1},
+                success: function(response) {
+                    msgsdata = eval(response);
+                    msgsdata.forEach(element => {
+                            chatappend(element);
+                            if (last_id < element.id) last_id = element.id;
+                     });
+                    if (msgsdata.length > 1)
+                        setTimeout(getMessages, 10);
+                    else 
+                        setTimeout(getMessages, 1000);
+                },
+                error: function(xhr, status, error) {
+                    console.log(error);
+                    setTimeout(getMessages, 3000);
+                }
+            })
+
+        }
+        $('#message').focus();
+    </script>
+</body>
+</html>
